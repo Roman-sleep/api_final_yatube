@@ -1,23 +1,26 @@
-from rest_framework import viewsets, mixins
-from rest_framework.exceptions import PermissionDenied
+from rest_framework import viewsets
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.filters import SearchFilter
 
-
 from django.shortcuts import get_object_or_404
 
-from posts.models import Post
-from .serializers import CommentSerializer, PostSerializer, FollowSerializer
+from posts.models import Post, Group
+from .serializers import (CommentSerializer, PostSerializer,
+                          FollowSerializer, GroupSerializer)
 from .permissions import IsAuthorOrReadOnly
 
-API_ERROR_403 = PermissionDenied('You do not have permission'
-                                 'to perform this action!')
+
+class GroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
 
 
 class PostViewSet(viewsets.ModelViewSet):
     queryset = Post.objects.all()
     serializer_class = PostSerializer
-    permission_classes = [IsAuthorOrReadOnly, IsAuthenticated]
+    pagination_class = LimitOffsetPagination
+    permission_classes = [IsAuthorOrReadOnly,]
 
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
@@ -25,7 +28,7 @@ class PostViewSet(viewsets.ModelViewSet):
 
 class CommentViewSet(viewsets.ModelViewSet):
     serializer_class = CommentSerializer
-    permission_classes = [IsAuthorOrReadOnly, IsAuthenticated]
+    permission_classes = [IsAuthorOrReadOnly,]
 
     def get_queryset(self):
         post = get_object_or_404(Post, pk=self.kwargs.get('post_id'))
@@ -37,9 +40,7 @@ class CommentViewSet(viewsets.ModelViewSet):
         serializer.save(author=self.request.user, post=post)
 
 
-class FollowViewSet(mixins.CreateModelMixin,
-                    mixins.ListModelMixin,
-                    viewsets.GenericViewSet):
+class FollowViewSet(viewsets.ModelViewSet):
     serializer_class = FollowSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [SearchFilter]
